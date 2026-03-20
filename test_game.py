@@ -134,7 +134,7 @@ def test_string_roundtrip(game: HexGame) -> None:
     game_string = str(game)
     game2 = HexGame.from_string(game_string)
     assert str(game) == str(game2)
-    assert game.boards == game2.boards
+    assert game._boards == game2._boards
     assert game.current_player == game2.current_player
     assert game.turn_number == game2.turn_number
 
@@ -158,7 +158,7 @@ def test_from_string_vs_manual() -> None:
     game_manual.make_move(-1, 1)  # O (P2 Turn 4)
     game_manual.current_player = 1
 
-    assert game_str.boards == game_manual.boards
+    assert game_str._boards == game_manual._boards
     assert game_str.current_player == game_manual.current_player
     assert game_str.turn_number == game_manual.turn_number
     assert game_str.moves_this_turn == game_manual.moves_this_turn

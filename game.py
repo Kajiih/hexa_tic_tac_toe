@@ -18,22 +18,22 @@ class HexGame:
     Attributes:
         radius: The radius of the hexagonal board.
         win_length: The number of marks in a row required to win.
-        boards: A list containing bitboards for player 1 and player 2.
         current_player: The index of the player whose turn it is (1 or 2).
         moves_this_turn: The number of moves already made in the current turn.
         turn_number: The current turn number (starts at 1).
-        offset: Internal offset used for mapping axial coordinates to bitboard indices.
-        padded_width: The width of the padded internal bitboard representation.
     """
 
     radius: int
     win_length: int
-    boards: list[int]
+    # A list containing bitboards for player 1 and player 2.
+    _boards: list[int]
     current_player: int
     moves_this_turn: int
     turn_number: int
-    offset: int
-    padded_width: int
+    # Internal offset used for mapping axial coordinates to bitboard indices.
+    _offset: int
+    # The width of the padded internal bitboard representation.
+    _padded_width: int
 
     def __init__(self, radius: int = 50) -> None:
         """Initializes a new HexGame.
@@ -44,13 +44,13 @@ class HexGame:
         self.radius = radius
         self.win_length = 6
         # Bitboards for player 1 and 2
-        self.boards = [0, 0]
+        self._boards = [0, 0]
         self.current_player = 1
         self.moves_this_turn = 0
         self.turn_number = 1
-        # Mapping parameters: (q, r) -> (q+offset) * padded_width + (r+offset)
-        self.offset = radius - 1
-        self.padded_width = 2 * radius + self.win_length  # Padding for shift-win check
+        # Mapping parameters: (q, r) -> (q+_offset) * _padded_width + (r+_offset)
+        self._offset = radius - 1
+        self._padded_width = 2 * radius + self.win_length  # Padding for shift-win check
 
     def is_valid_move(self, q: int, r: int) -> bool:
         """Checks if a coordinate is a valid move.
@@ -70,9 +70,9 @@ class HexGame:
         if abs(q) >= self.radius or abs(r) >= self.radius or abs(q + r) >= self.radius:
             return False
 
-        index = (q + self.offset) * self.padded_width + (r + self.offset)
+        index = (q + self._offset) * self._padded_width + (r + self._offset)
         # Check if either board has the bit set
-        if (self.boards[0] | self.boards[1]) & (1 << index):
+        if (self._boards[0] | self._boards[1]) & (1 << index):
             return False
 
         return True
@@ -104,11 +104,11 @@ class HexGame:
                     f"Cell ({q}, {r}) is outside the radius {self.radius}."
                 )
 
-        index = (q + self.offset) * self.padded_width + (r + self.offset)
+        index = (q + self._offset) * self._padded_width + (r + self._offset)
         player_index = self.current_player - 1
-        self.boards[player_index] |= 1 << index
+        self._boards[player_index] |= 1 << index
 
-        if self.check_win(self.current_player):
+        if self._check_win(self.current_player):
             return self.current_player
 
         # Turn logic: 1 move for P1 on turn 1, 2 moves for every turn after.
@@ -122,7 +122,7 @@ class HexGame:
 
         return None
 
-    def check_win(self, player: int) -> bool:
+    def _check_win(self, player: int) -> bool:
         """Checks if the specified player has won the game.
 
         Uses extremely fast bitwise shifts to detect 6 in a row in all 3 axes.
@@ -133,12 +133,12 @@ class HexGame:
         Returns:
             True if the player has 6 marks in a row, False otherwise.
         """
-        bits = self.boards[player - 1]
+        bits = self._boards[player - 1]
         # Directions in axial grid bitboard:
         # 1: r-axis (0, 1)
-        # padded_width: q-axis (1, 0)
-        # padded_width-1: s-axis (1, -1)
-        for direction in (1, self.padded_width, self.padded_width - 1):
+        # _padded_width: q-axis (1, 0)
+        # _padded_width-1: s-axis (1, -1)
+        for direction in (1, self._padded_width, self._padded_width - 1):
             # Check for 6 in a row: bits & bits<<direction & bits<<2d & bits<<3d & bits<<4d & bits<<5d
             two_in_a_row = bits & (bits << direction)
             four_in_a_row = two_in_a_row & (two_in_a_row << (2 * direction))
@@ -194,11 +194,11 @@ class HexGame:
                     continue
 
                 q = q_start + q_index
-                index = (q + game.offset) * game.padded_width + (r + game.offset)
+                index = (q + game._offset) * game._padded_width + (r + game._offset)
                 if character == "X":
-                    game.boards[0] |= 1 << index
+                    game._boards[0] |= 1 << index
                 elif character == "O":
-                    game.boards[1] |= 1 << index
+                    game._boards[1] |= 1 << index
                 total_pieces = total_pieces + 1
 
         # Reconstruct turn state
@@ -232,10 +232,10 @@ class HexGame:
             q_end = min((self.radius - 1), (self.radius - 1) - r)
 
             for q in range(q_start, q_end + 1):
-                index = (q + self.offset) * self.padded_width + (r + self.offset)
-                if self.boards[0] & (1 << index):
+                index = (q + self._offset) * self._padded_width + (r + self._offset)
+                if self._boards[0] & (1 << index):
                     row_characters.append("X")
-                elif self.boards[1] & (1 << index):
+                elif self._boards[1] & (1 << index):
                     row_characters.append("O")
                 else:
                     row_characters.append(".")
