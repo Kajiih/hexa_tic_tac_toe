@@ -12,6 +12,9 @@ dependencies = [
     "numpy>=2.4.3",
     "pgx>=2.6.0",
     "flax>=0.12.6",
+    "optax>=0.2.8",
+    "mctx>=0.0.6",
+    "chex>=0.1.91",
 ]
 
 [tool.pytest.ini_options]
