@@ -1,5 +1,9 @@
+"""Utility script to export a random game for the visualizer."""
+
 import json
 import random
+from pathlib import Path
+
 from game import HexGame
 
 
@@ -7,7 +11,7 @@ def export_random_game(radius: int = 5) -> None:
     """Plays a random game and exports the history to JSON."""
     game = HexGame(radius=radius)
     coords = list(game.get_all_coordinates())
-    random.shuffle(coords)
+    random.shuffle(coords)  # noqa: S311
 
     winner = None
     for q, r in coords:
@@ -18,11 +22,13 @@ def export_random_game(radius: int = 5) -> None:
     data = {"radius": radius, "history": game.move_history, "winner": winner}
 
     # Save to the visualizer's public folder for easy fetching
-    with open("visualizer/public/game_data.json", "w") as f:
+    out_path = Path("visualizer/public/game_data.json")
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    with out_path.open("w") as f:
         json.dump(data, f)
 
-    print(
-        f"Exported game with {len(game.move_history)} moves to visualizer/public/game_data.json"
+    print(  # noqa: T201
+        f"Exported game with {len(game.move_history)} moves to {out_path}"
     )
 
 

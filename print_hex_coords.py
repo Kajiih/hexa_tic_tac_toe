@@ -4,10 +4,9 @@ def get_coord_hex(radius: int) -> str:
     # For R<10, it's 2 chars (e.g. "-9", " 9")
     # Let's dynamically find max width
     max_val = radius
-    cell_width = max(2, len(str(max_val)) + 1)  # e.g. " 9", "-9" -> length 2.
+    max(2, len(str(max_val)) + 1)  # e.g. " 9", "-9" -> length 2.
 
     # We want format string, e.g. "{:>2}"
-    format_string = f"{{:>{cell_width}}}"
 
     for r in range(-(radius - 1), radius):
         q_start = max(-(radius - 1), -(radius - 1) - r)

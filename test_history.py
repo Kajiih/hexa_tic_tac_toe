@@ -1,3 +1,5 @@
+"""Tests for the game history and undo logic."""
+
 from game import HexGame
 
 
@@ -31,7 +33,7 @@ def test_undo_move_logic() -> None:
     assert game.current_player == 1
     assert game.turn_number == 1
     assert game.moves_this_turn == 0
-    assert game._boards == [0, 0]
+    assert all(game.get_player_at(q, r) is None for q, r in game.get_all_coordinates())
     assert game.move_history == []
 
     # Re-apply move 1
@@ -66,7 +68,7 @@ def test_undo_move_logic() -> None:
     assert game.current_player == 1
     assert game.turn_number == 1
     assert game.moves_this_turn == 0
-    assert game._boards == [0, 0]
+    assert all(game.get_player_at(q, r) is None for q, r in game.get_all_coordinates())
 
 
 def test_reset() -> None:
@@ -76,7 +78,7 @@ def test_reset() -> None:
     game.make_move(1, 0)
     game.reset()
 
-    assert game._boards == [0, 0]
+    assert all(game.get_player_at(q, r) is None for q, r in game.get_all_coordinates())
     assert game.current_player == 1
     assert game.turn_number == 1
     assert game.moves_this_turn == 0

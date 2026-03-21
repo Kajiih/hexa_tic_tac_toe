@@ -4,8 +4,9 @@ This module provides a benchmark function to measure the performance of the
 HexGame engine by playing a large number of random games.
 """
 
-import time
 import random
+import time
+
 from game import HexGame
 
 
@@ -24,14 +25,14 @@ def run_benchmark(num_games: int = 1000) -> None:
     game_instance = HexGame(radius=radius)
     all_coords = list(game_instance.get_all_coordinates())
 
-    print(
+    print(  # noqa: T201
         f"Starting benchmark: {num_games} games on radius {radius} board ({len(all_coords)} cells)"
     )
 
     for i in range(num_games):
         game = HexGame(radius=radius)
         coords = all_coords.copy()
-        random.shuffle(coords)
+        random.shuffle(coords)  # noqa: S311
 
         winner: int | None = None
         for q, r in coords:
@@ -43,19 +44,19 @@ def run_benchmark(num_games: int = 1000) -> None:
         wins[winner] += 1
 
         if (i + 1) % 100 == 0:
-            print(f"Finished {i + 1} games...")
+            print(f"Finished {i + 1} games...")  # noqa: T201
 
     end_time = time.time()
     duration = end_time - start_time
 
-    print("\nBenchmark Results:")
-    print(f"Total Games: {num_games}")
-    print(f"Total Moves: {total_moves}")
-    print(f"Total Time: {duration:.2f} seconds")
+    print("\nBenchmark Results:")  # noqa: T201
+    print(f"Total Games: {num_games}")  # noqa: T201
+    print(f"Total Moves: {total_moves}")  # noqa: T201
+    print(f"Total Time: {duration:.2f} seconds")  # noqa: T201
     if duration > 0:
-        print(f"Games per Second: {num_games / duration:.2f}")
-        print(f"Moves per Second: {total_moves / duration:.2f}")
-    print(f"Wins: P1: {wins[1]}, P2: {wins[2]}, Draw: {wins[None]}")
+        print(f"Games per Second: {num_games / duration:.2f}")  # noqa: T201
+        print(f"Moves per Second: {total_moves / duration:.2f}")  # noqa: T201
+    print(f"Wins: P1: {wins[1]}, P2: {wins[2]}, Draw: {wins[None]}")  # noqa: T201
 
 
 if __name__ == "__main__":

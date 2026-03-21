@@ -12,7 +12,7 @@ def game() -> HexGame:
 
 # --- Radius Validation ---
 @pytest.mark.parametrize(
-    "q, r, expected",
+    ("q", "r", "expected"),
     [
         pytest.param(0, 0, True, id="center"),
         pytest.param(49, 0, True, id="q_edge"),
@@ -27,14 +27,14 @@ def game() -> HexGame:
         pytest.param(100, 100, False, id="distinctly_outside"),
     ],
 )
-def test_radius_validation(game: HexGame, q: int, r: int, expected: bool) -> None:
+def test_radius_validation(game: HexGame, q: int, r: int, *, expected: bool) -> None:
     """Tests that coordinates are correctly validated against the board radius."""
     assert game.is_valid_move(q, r) is expected
 
 
 # --- Invalid Move Validations ---
 @pytest.mark.parametrize(
-    "q, r, match_text",
+    ("q", "r", "match_text"),
     [
         pytest.param(0, 0, "already occupied", id="already_occupied"),
         pytest.param(50, 0, "outside the radius", id="q_outside_radius"),
@@ -94,6 +94,7 @@ def test_no_false_win(move_sequence: list[tuple[int, int]]) -> None:
 
 
 # --- Real Win Validations ---
+# TODO(P0): This should not be a win. There are only 5 X's in a row. FIX THIS.
 WIN_R_GRID = """
       . . . . . .
      . . . . . . .
@@ -138,7 +139,7 @@ WIN_S_GRID = """
 
 
 @pytest.mark.parametrize(
-    "grid, move_q, move_r, expected_winner",
+    ("grid", "move_q", "move_r", "expected_winner"),
     [
         pytest.param(WIN_R_GRID, 0, 5, 1, id="win_along_r_axis"),
         pytest.param(WIN_Q_GRID, 5, 0, 1, id="win_along_q_axis"),
@@ -156,7 +157,7 @@ def test_win_conditions(
 
 # --- Parsing Exceptions ---
 @pytest.mark.parametrize(
-    "grid_str, match_text",
+    ("grid_str", "match_text"),
     [
         pytest.param("", "Empty grid string", id="empty_string"),
         pytest.param("   \n   ", "Empty grid string", id="whitespace_string"),
@@ -197,15 +198,18 @@ def test_string_roundtrip(move_sequence: list[tuple[int, int]]) -> None:
     game_string = str(game)
     game2 = HexGame.from_string(game_string)
     assert str(game) == str(game2)
-    assert game._boards == game2._boards
+    # Compare public state
     assert game.current_player == game2.current_player
     assert game.turn_number == game2.turn_number
     assert game.moves_this_turn == game2.moves_this_turn
+    # Verify boards match by checking every coordinate
+    for q, r in game.get_all_coordinates():
+        assert game.get_player_at(q, r) == game2.get_player_at(q, r)
 
 
 # --- String vs Manual Setup Equivalencies ---
 @pytest.mark.parametrize(
-    "grid, move_sequence",
+    ("grid", "move_sequence"),
     [
         pytest.param("  . .\n . . .\n  . .", [], id="empty_board"),
         pytest.param("  X .\n . . .\n  . .", [(0, -1)], id="single_piece_p1"),
@@ -227,8 +231,9 @@ def test_from_string_vs_manual(grid: str, move_sequence: list[tuple[int, int]]) 
     if len(move_sequence) == 7:
         game_manual.current_player = 1
 
-    assert game_str._boards == game_manual._boards
     assert game_str.current_player == game_manual.current_player
     assert game_str.turn_number == game_manual.turn_number
     assert game_str.moves_this_turn == game_manual.moves_this_turn
     assert str(game_str) == str(game_manual)
+    for q, r in game_manual.get_all_coordinates():
+        assert game_str.get_player_at(q, r) == game_manual.get_player_at(q, r)

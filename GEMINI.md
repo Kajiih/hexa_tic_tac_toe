@@ -1,0 +1,1 @@
+- You shell is `nushell`, if you need to run default commands like `ls`, `cat`, `mkdir`, `rm`, you can append `^` to the command to execute the non-nushell version of the command. For example, `^ls` will execute the `ls` command.

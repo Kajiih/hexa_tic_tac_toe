@@ -1,6 +1,5 @@
 """Showcase script for Hexagonal Tic-Tac-Toe features."""
 
-import os
 import subprocess
 import time
 from export_game import export_random_game
