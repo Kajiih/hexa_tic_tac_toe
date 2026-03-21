@@ -72,7 +72,7 @@ def build_recurrent_fn(env: HexTicTacToePgx, network: nn.Module):
             reward=reward,
             discount=discount,
             prior_logits=policy_logits,
-            value=value,
+            value=value,  # type: ignore
         )
         return recurrent_fn_output, next_state
 
@@ -106,7 +106,7 @@ def run_mcts(
 
     root = mctx.RootFnOutput(
         prior_logits=policy_logits,
-        value=value,
+        value=value,  # type: ignore
         embedding=state,
     )
 

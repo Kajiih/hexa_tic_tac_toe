@@ -1,9 +1,7 @@
 import functools
-from typing import Any
+from typing import Any, cast
 
 import jax
-import jax.numpy as jnp
-import pytest
 
 from hexa_tic_tac_toe.agent import AlphaZeroNet, create_train_state, self_play_step, train_step
 from hexa_tic_tac_toe.env.pgx_env import HexTicTacToePgx
@@ -30,6 +28,8 @@ def test_agent_training_loop() -> None:
     @functools.partial(jax.jit, static_argnames=("num_simulations",))
     def jit_play_step(params: Any, e_state: Any, r_key: jax.Array, num_simulations: int = 4) -> tuple:
         return self_play_step(env, network, params, e_state, r_key, num_simulations)
+
+    jit_play_step = cast(Any, jit_play_step)
 
     # Execute one batched step of self-play with MCTS
     # MCTS takes a few seconds to compile initially

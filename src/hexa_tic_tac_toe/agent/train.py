@@ -33,7 +33,7 @@ def loss_fn(params: Any, network: AlphaZeroNet, batch: dict[str, jnp.ndarray]) -
     policy_logits, value = network.apply({"params": params}, obs)
 
     # Value Loss (MSE)
-    value_loss = jnp.mean(optax.l2_loss(value, target_value))
+    value_loss = jnp.mean(optax.l2_loss(value, target_value))  # type: ignore
 
     # Policy Loss (Cross Entropy)
     # target_policy from mctx is already probabilities
@@ -90,4 +90,4 @@ def self_play_step(
         "target_value": jnp.zeros(batch_size, dtype=jnp.float32),  # Placeholder for MCTS/game value
     }
 
-    return next_env_state, transition, next_rng_key
+    return next_env_state, transition, next_rng_key  # type: ignore
