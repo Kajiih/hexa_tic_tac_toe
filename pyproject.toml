@@ -10,6 +10,8 @@ dependencies = [
     "pytest>=8.0.0",
     "pettingzoo>=1.25.0",
     "numpy>=2.4.3",
+    "pgx>=2.6.0",
+    "flax>=0.12.6",
 ]
 
 [tool.pytest.ini_options]
