@@ -4,7 +4,7 @@ This module contains the HexGame class which handles the rules, win conditions,
 and board state for a hexagonal tic-tac-toe game played on a grid of bitboards.
 """
 
-from typing import Iterable
+from collections.abc import Iterable
 
 # Type alias for coordinates
 type Coord = tuple[int, int]
@@ -54,6 +54,18 @@ class HexGame:
         self._offset = radius - 1
         self._padded_width = 2 * radius + self.win_length  # Padding for shift-win check
 
+    def _coord_to_index(self, q: int, r: int) -> int:
+        """Converts axial coordinates to a bitboard index.
+
+        Args:
+            q: The axial q-coordinate.
+            r: The axial r-coordinate.
+
+        Returns:
+            The integer index for the bitboard.
+        """
+        return (q + self._offset) * self._padded_width + (r + self._offset)
+
     def get_all_coordinates(self) -> Iterable[Coord]:
         """Provides an iterator over all valid axial coordinates on the board.
 
@@ -83,7 +95,7 @@ class HexGame:
         if abs(q) >= self.radius or abs(r) >= self.radius or abs(q + r) >= self.radius:
             return False
 
-        index = (q + self._offset) * self._padded_width + (r + self._offset)
+        index = self._coord_to_index(q, r)
         # Check if either board has the bit set
         if (self._boards[0] | self._boards[1]) & (1 << index):
             return False
@@ -117,7 +129,7 @@ class HexGame:
                     f"Cell ({q}, {r}) is outside the radius {self.radius}."
                 )
 
-        index = (q + self._offset) * self._padded_width + (r + self._offset)
+        index = self._coord_to_index(q, r)
         player_index = self.current_player - 1
         self._boards[player_index] |= 1 << index
 
@@ -191,8 +203,17 @@ class HexGame:
         total_pieces: int = 0
         for row_index, line in enumerate(lines):
             r = row_index - (radius - 1)
-            # Extract only the relevant symbols, ignoring spaces
-            characters = "".join(c for c in line if c in "XO.")
+            # Validate that only allowed characters are present (ignoring spaces)
+            stripped_line = line.replace(" ", "")
+            if not all(c in "XO." for c in stripped_line):
+                invalid_chars = "".join(
+                    sorted(set(c for c in stripped_line if c not in "XO."))
+                )
+                raise ValueError(
+                    f"Invalid characters '{invalid_chars}' in row {row_index}."
+                )
+
+            characters = stripped_line
 
             q_start = max(-(radius - 1), -(radius - 1) - r)
             expected_len = 2 * radius - 1 - abs(r)
@@ -207,7 +228,7 @@ class HexGame:
                     continue
 
                 q = q_start + q_index
-                index = (q + game._offset) * game._padded_width + (r + game._offset)
+                index = game._coord_to_index(q, r)
                 if character == "X":
                     game._boards[0] |= 1 << index
                 elif character == "O":
@@ -245,7 +266,7 @@ class HexGame:
             q_end = min((self.radius - 1), (self.radius - 1) - r)
 
             for q in range(q_start, q_end + 1):
-                index = (q + self._offset) * self._padded_width + (r + self._offset)
+                index = self._coord_to_index(q, r)
                 if self._boards[0] & (1 << index):
                     row_characters.append("X")
                 elif self._boards[1] & (1 << index):

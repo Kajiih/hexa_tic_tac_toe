@@ -7,6 +7,7 @@ to measure performance and gather statistics.
 import time
 import multiprocessing
 import random
+from concurrent.futures import ProcessPoolExecutor
 from game import HexGame
 
 
@@ -34,7 +35,7 @@ def play_one_random_game(radius: int = 50) -> int | None:
 
 
 def run_multiprocess_games(total_games: int = 1000) -> None:
-    """Runs multiple random games in parallel using multiprocessing.
+    """Runs multiple random games in parallel using ProcessPoolExecutor.
 
     Args:
         total_games: The number of games to simulate. Defaults to 1000.
@@ -42,9 +43,10 @@ def run_multiprocess_games(total_games: int = 1000) -> None:
     print(f"Running {total_games} games in parallel across CPU cores...")
     start_time = time.time()
 
-    num_cpus = multiprocessing.cpu_count()
-    with multiprocessing.Pool(processes=num_cpus) as pool:
-        results = pool.map(play_one_random_game, [50] * total_games)
+    num_workers = multiprocessing.cpu_count()
+    with ProcessPoolExecutor(max_workers=num_workers) as executor:
+        # Use list() to consume the iterator and wait for all results
+        results = list(executor.map(play_one_random_game, [50] * total_games))
 
     duration = time.time() - start_time
     print(f"Finished {total_games} games in {duration:.2f} seconds.")

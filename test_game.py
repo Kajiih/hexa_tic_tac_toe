@@ -164,6 +164,9 @@ def test_win_conditions(
         pytest.param(
             " . . \n . . \n . . ", "has 2 cells, expected 3", id="incorrect_row_length"
         ),
+        pytest.param(
+            "  X ?\n . . .\n  . .", "Invalid characters '?'", id="invalid_character"
+        ),
     ],
 )
 def test_from_string_invalid(grid_str: str, match_text: str) -> None:
