@@ -50,6 +50,7 @@ class HexGame:
         self.current_player = 1
         self.moves_this_turn = 0
         self.turn_number = 1
+        self.move_history: list[Coord] = []
         # Mapping parameters: (q, r) -> (q+_offset) * _padded_width + (r+_offset)
         self._offset = radius - 1
         self._padded_width = 2 * radius + self.win_length  # Padding for shift-win check
@@ -132,6 +133,7 @@ class HexGame:
         index = self._coord_to_index(q, r)
         player_index = self.current_player - 1
         self._boards[player_index] |= 1 << index
+        self.move_history.append((q, r))
 
         if self._check_win(self.current_player):
             return self.current_player
@@ -146,6 +148,43 @@ class HexGame:
             self.turn_number += 1
 
         return None
+
+    def undo_move(self) -> None:
+        """Reverts the last move made in the game.
+
+        This method updates the bitboards, current player, turn number,
+        and moves this turn to exactly what they were before the last move.
+        """
+        if not self.move_history:
+            return
+
+        # Get last move
+        q, r = self.move_history.pop()
+        index = self._coord_to_index(q, r)
+
+        # We don't know which player made it directly, but we can deduce it
+        # from moves_this_turn and turn_number logic, or just check both boards.
+        # Checking both boards is robust.
+        self._boards[0] &= ~(1 << index)
+        self._boards[1] &= ~(1 << index)
+
+        # Revert turn logic
+        if self.moves_this_turn > 0:
+            self.moves_this_turn -= 1
+        else:
+            # We were at the start of a turn, so we go back to the previous turn
+            self.turn_number -= 1
+            self.current_player = 3 - self.current_player
+            moves_needed = 1 if self.turn_number == 1 else 2
+            self.moves_this_turn = moves_needed - 1
+
+    def reset(self) -> None:
+        """Resets the game to the initial empty state."""
+        self._boards = [0, 0]
+        self.current_player = 1
+        self.moves_this_turn = 0
+        self.turn_number = 1
+        self.move_history = []
 
     def _check_win(self, player: int) -> bool:
         """Checks if the specified player has won the game.
