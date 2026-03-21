@@ -115,9 +115,9 @@ class HexGame[T]:
         if not self.is_valid_coordinate(q, r):
             return False
 
-        index = self._coord_to_index(q, r)
+        index = self._coord_to_index(int(q), int(r))
         # Check if either board has the bit set
-        return not ((self._boards[0] | self._boards[1]) & (1 << index))
+        return not (((self._boards[0] | self._boards[1]) >> index) & 1)
 
     def get_player_at(self, q: int, r: int) -> Player | None:
         """Returns the player occupying the given cell, or None if empty.
@@ -132,10 +132,10 @@ class HexGame[T]:
         if not self.is_valid_coordinate(q, r):
             return None
 
-        index = self._coord_to_index(q, r)
-        if self._boards[0] & (1 << index):
+        index = self._coord_to_index(int(q), int(r))
+        if (self._boards[0] >> index) & 1:
             return 1
-        if self._boards[1] & (1 << index):
+        if (self._boards[1] >> index) & 1:
             return 2
         return None
 
@@ -158,10 +158,10 @@ class HexGame[T]:
                 raise ValueError(f"Cell ({q}, {r}) is already occupied.")
             raise ValueError(f"Cell ({q}, {r}) is outside the radius {self.radius}.")
 
-        index = self._coord_to_index(q, r)
+        index = self._coord_to_index(int(q), int(r))
         player_index = self.current_player - 1
         self._boards[player_index] |= 1 << index
-        self.move_history.append((q, r))
+        self.move_history.append((int(q), int(r)))
 
         if self._check_win(self.current_player):
             self.winner = self.current_player

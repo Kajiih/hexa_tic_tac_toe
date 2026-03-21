@@ -1,7 +1,7 @@
 """Unit tests for Hexagonal Tic Tac Toe."""
 
 import pytest
-from game import HexGame
+from hexa_tic_tac_toe import HexGame
 
 
 @pytest.fixture

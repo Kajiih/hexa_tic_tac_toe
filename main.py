@@ -8,7 +8,7 @@ import time
 import multiprocessing
 import random
 from concurrent.futures import ProcessPoolExecutor
-from game import HexGame
+from hexa_tic_tac_toe import HexGame
 
 
 def play_one_random_game(radius: int = 50) -> int | None:

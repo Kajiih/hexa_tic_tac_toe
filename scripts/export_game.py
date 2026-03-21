@@ -4,7 +4,7 @@ import json
 import random
 from pathlib import Path
 
-from game import HexGame
+from hexa_tic_tac_toe import HexGame
 
 
 def export_random_game(radius: int = 5) -> None:

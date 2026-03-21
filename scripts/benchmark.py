@@ -7,7 +7,7 @@ HexGame engine by playing a large number of random games.
 import random
 import time
 
-from game import HexGame
+from hexa_tic_tac_toe import HexGame
 
 
 def run_benchmark(num_games: int = 1000) -> None:

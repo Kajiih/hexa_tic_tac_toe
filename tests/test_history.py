@@ -1,6 +1,6 @@
 """Tests for the game history and undo logic."""
 
-from game import HexGame
+from hexa_tic_tac_toe import HexGame
 
 
 def test_move_history() -> None:

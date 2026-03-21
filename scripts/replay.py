@@ -3,7 +3,7 @@
 import time
 import os
 import sys
-from game import HexGame
+from hexa_tic_tac_toe import HexGame
 
 
 def clear_screen() -> None:

@@ -8,4 +8,9 @@ dependencies = [
     "ruff>=0.15.7",
     "ty>=0.0.24",
     "pytest>=8.0.0",
+    "pettingzoo>=1.25.0",
+    "numpy>=2.4.3",
 ]
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
