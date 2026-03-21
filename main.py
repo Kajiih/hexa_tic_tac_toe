@@ -21,13 +21,8 @@ def play_one_random_game(radius: int = 50) -> int | None:
     """
     game = HexGame(radius=radius)
 
-    # Generate all valid coordinates
-    coords: list[tuple[int, int]] = []
-    for q in range(-radius + 1, radius):
-        for r in range(-radius + 1, radius):
-            if abs(q + r) < radius:
-                coords.append((q, r))
-
+    # Generate and shuffle all valid coordinates
+    coords = list(game.get_all_coordinates())
     random.shuffle(coords)
 
     winner: int | None = None

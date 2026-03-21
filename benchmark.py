@@ -20,13 +20,9 @@ def run_benchmark(num_games: int = 1000) -> None:
     wins: dict[int | None, int] = {1: 0, 2: 0, None: 0}
 
     # Pre-calculate all valid moves to save time in the loop
-    # (Though in a real game, moves would be checked dynamically)
     radius: int = 50
-    all_coords: list[tuple[int, int]] = []
-    for q in range(-radius + 1, radius):
-        for r in range(-radius + 1, radius):
-            if abs(q + r) < radius:
-                all_coords.append((q, r))
+    game_instance = HexGame(radius=radius)
+    all_coords = list(game_instance.get_all_coordinates())
 
     print(
         f"Starting benchmark: {num_games} games on radius {radius} board ({len(all_coords)} cells)"

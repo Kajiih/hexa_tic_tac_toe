@@ -1,8 +1,10 @@
-"""Hexagonal Tic Tac Toe game logic.
+"""Hexagonal Tic-Tac-Toe game logic.
 
 This module contains the HexGame class which handles the rules, win conditions,
 and board state for a hexagonal tic-tac-toe game played on a grid of bitboards.
 """
+
+from typing import Iterable
 
 # Type alias for coordinates
 type Coord = tuple[int, int]
@@ -51,6 +53,17 @@ class HexGame:
         # Mapping parameters: (q, r) -> (q+_offset) * _padded_width + (r+_offset)
         self._offset = radius - 1
         self._padded_width = 2 * radius + self.win_length  # Padding for shift-win check
+
+    def get_all_coordinates(self) -> Iterable[Coord]:
+        """Provides an iterator over all valid axial coordinates on the board.
+
+        Returns:
+            An iterable of (q, r) tuples representing all valid cells.
+        """
+        for q in range(-(self.radius - 1), self.radius):
+            for r in range(-(self.radius - 1), self.radius):
+                if abs(q + r) < self.radius:
+                    yield (q, r)
 
     def is_valid_move(self, q: int, r: int) -> bool:
         """Checks if a coordinate is a valid move.
@@ -199,7 +212,7 @@ class HexGame:
                     game._boards[0] |= 1 << index
                 elif character == "O":
                     game._boards[1] |= 1 << index
-                total_pieces = total_pieces + 1
+                total_pieces += 1
 
         # Reconstruct turn state
         if total_pieces > 0:
