@@ -17,7 +17,7 @@ from typing import Any, cast
 import jax
 import orbax.checkpoint
 import wandb
-from flax.training import orbax_utils
+
 
 from hexa_tic_tac_toe.agent import (
     AlphaZeroNet,
@@ -40,7 +40,7 @@ def main(args: argparse.Namespace) -> None:
     os.makedirs(ckpt_dir, exist_ok=True)
     options = orbax.checkpoint.CheckpointManagerOptions(max_to_keep=2, create=True)
     checkpoint_manager = orbax.checkpoint.CheckpointManager(
-        ckpt_dir, orbax.checkpoint.Checkpointer(orbax.checkpoint.PyTreeCheckpointHandler()), options=options
+        ckpt_dir, options=options
     )
 
     # 3. Environment & Neural Network
@@ -57,7 +57,8 @@ def main(args: argparse.Namespace) -> None:
     latest_step = checkpoint_manager.latest_step()
     if latest_step is not None:
         print(f"Restoring from checkpoint at step {latest_step}...")
-        train_state = checkpoint_manager.restore(latest_step, args=orbax_utils.restore_args_from_target(train_state))
+        restore_args = orbax.checkpoint.args.StandardRestore(train_state)
+        train_state = checkpoint_manager.restore(latest_step, args=restore_args)
     else:
         latest_step = 0
 
@@ -128,8 +129,8 @@ def main(args: argparse.Namespace) -> None:
 
         if step % args.save_interval == 0:
             print(f"Saving checkpoint at step {step}...")
-            save_args = orbax_utils.save_args_from_target(train_state)
-            checkpoint_manager.save(step, train_state, save_kwargs={"save_args": save_args})
+            save_args = orbax.checkpoint.args.StandardSave(train_state)
+            checkpoint_manager.save(step, args=save_args)
 
 
 if __name__ == "__main__":
