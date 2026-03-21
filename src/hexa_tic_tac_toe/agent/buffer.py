@@ -22,6 +22,7 @@ def create_replay_buffer(max_length: int = 100_000, min_length: int = 10_000, sa
         max_length=max_length,
         min_length=min_length,
         sample_batch_size=sample_batch_size,
+        add_batches=True,
     )
     return buffer
 

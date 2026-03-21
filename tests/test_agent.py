@@ -3,7 +3,14 @@ from typing import Any, cast
 
 import jax
 
-from hexa_tic_tac_toe.agent import AlphaZeroNet, create_train_state, self_play_step, train_step
+from hexa_tic_tac_toe.agent import (
+    AlphaZeroNet,
+    create_replay_buffer,
+    create_train_state,
+    init_buffer_state,
+    self_play_step,
+    train_step,
+)
 from hexa_tic_tac_toe.env.pgx_env import HexTicTacToePgx
 
 
@@ -26,7 +33,9 @@ def test_agent_training_loop() -> None:
     network = AlphaZeroNet()
 
     @functools.partial(jax.jit, static_argnames=("num_simulations",))
-    def jit_play_step(params: Any, e_state: Any, r_key: jax.Array, num_simulations: int = 4) -> tuple:
+    def jit_play_step(
+        params: Any, e_state: Any, r_key: jax.Array, num_simulations: int = 4
+    ) -> tuple:
         return self_play_step(env, network, params, e_state, r_key, num_simulations)
 
     jit_play_step = cast(Any, jit_play_step)
@@ -43,9 +52,26 @@ def test_agent_training_loop() -> None:
     assert transition["target_policy"].shape == (batch_size, 11236)
     assert transition["observation"].shape == (batch_size, 3, 106, 106)
 
-    # 4. Execute a training step using the collected transition
+    # 4. Storage and Sampling via Flashbax Replay Buffer
+    buffer = create_replay_buffer(
+        max_length=50_000,
+        min_length=batch_size,
+        sample_batch_size=batch_size,
+    )
+    buffer_state = init_buffer_state(
+        buffer, dummy_env_obs_shape=(3, 106, 106), action_size=11236
+    )
+
+    jitted_buffer_add = jax.jit(buffer.add)
+    buffer_state = jitted_buffer_add(buffer_state, transition)
+
+    jitted_buffer_sample = jax.jit(buffer.sample)
+    key, sample_key = jax.random.split(key)
+    sampled_batch = jitted_buffer_sample(buffer_state, sample_key)
+
+    # 5. Execute a training step using the collected transition from the buffer
     # The train_step in train.py is already @jax.jit decorated
-    train_state, metrics = train_step(train_state, transition)
+    train_state, metrics = train_step(train_state, sampled_batch.experience)
 
     assert "total_loss" in metrics
     assert "policy_loss" in metrics
