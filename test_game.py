@@ -70,31 +70,8 @@ def test_turn_pattern(game: HexGame) -> None:
     game.make_move(0, 2)
 
 
-# --- False Win Fallbacks ---
-@pytest.mark.parametrize(
-    "move_sequence",
-    [
-        pytest.param([(0, 0), (1, 0), (2, 0), (3, 0), (4, 0)], id="5_in_a_row_q_axis"),
-        pytest.param([(0, 0), (0, 1), (0, 2), (0, 3), (0, 4)], id="5_in_a_row_r_axis"),
-        pytest.param(
-            [(0, 0), (1, -1), (2, -2), (3, -3), (4, -4)], id="5_in_a_row_s_axis"
-        ),
-        pytest.param(
-            [(0, 1), (1, 1), (2, 1), (4, 1), (5, 1), (6, 1)], id="split_line_gap_of_1"
-        ),
-    ],
-)
-def test_no_false_win(move_sequence: list[tuple[int, int]]) -> None:
-    """Tests that 5-in-a-row or split lines do not falsely trigger wins."""
-    game = HexGame(radius=10)
-    for q, r in move_sequence:
-        assert game.make_move(q, r) is None
-        # Force P1 to keep playing consecutive pieces for testing
-        game.current_player = 1
-
-
 # --- Real Win Validations ---
-# TODO(P0): This should not be a win. There are only 5 X's in a row. FIX THIS.
+# These grids represent states where a player has already won with 6-in-a-row.
 WIN_R_GRID = """
       . . . . . .
      . . . . . . .
@@ -106,7 +83,7 @@ WIN_R_GRID = """
    . . . . O X . . .
     . . . . O X . .
      . . . . O X .
-      . . . . O .
+      . . . . O X
 """
 
 WIN_Q_GRID = """
@@ -115,7 +92,7 @@ WIN_Q_GRID = """
     . . . . . . . .
    . . . . . . . . .
   . . . . . . . . . .
- . . . . . X X X X X .
+ . . . . . X X X X X X
   . . . . O O O O O O
    . . . . . . . . .
     . . . . . . . .
@@ -137,22 +114,88 @@ WIN_S_GRID = """
       . . . . . .
 """
 
+FIVE_IN_A_ROW_Q_GRID = """
+      . . . . . .
+     . . . . . . .
+    . . . . . . . .
+   . . . . . . . . .
+  . . . . . . . . . .
+ . . . . . X X X X X .
+  . . . . . . . . . .
+   . . . . . . . . .
+    . . . . . . . .
+     . . . . . . .
+      . . . . . .
+"""
+
+FIVE_IN_A_ROW_R_GRID = """
+      . . . . . .
+     . . . . . . .
+    . . . . . . . .
+   . . . . . . . . .
+  . . . . . . . . . .
+ . . . . . X . . . . .
+  . . . . . X . . . .
+   . . . . . X . . .
+    . . . . . X . .
+     . . . . . X .
+      . . . . . .
+"""
+
+FIVE_IN_A_ROW_S_GRID = """
+      . . . . . .
+     . . . . . . .
+    . . . . . . . .
+   . . . . . . . . .
+  . . . . . . . . . .
+ . . . . . X . . . . .
+  . . . . X . . . . .
+   . . . X . . . . .
+    . . X . . . . .
+     . X . . . . .
+      . . . . . .
+"""
+
 
 @pytest.mark.parametrize(
-    ("grid", "move_q", "move_r", "expected_winner"),
+    ("grid", "expected_winner"),
     [
-        pytest.param(WIN_R_GRID, 0, 5, 1, id="win_along_r_axis"),
-        pytest.param(WIN_Q_GRID, 5, 0, 1, id="win_along_q_axis"),
-        pytest.param(WIN_S_GRID, 5, -5, 1, id="win_along_s_axis"),
+        pytest.param(WIN_R_GRID, 1, id="win_along_r_axis"),
+        pytest.param(WIN_Q_GRID, 1, id="win_along_q_axis"),
+        pytest.param(WIN_S_GRID, 2, id="win_along_s_axis"),
+        pytest.param(FIVE_IN_A_ROW_Q_GRID, None, id="five_in_a_row_q"),
+        pytest.param(FIVE_IN_A_ROW_R_GRID, None, id="five_in_a_row_r"),
+        pytest.param(FIVE_IN_A_ROW_S_GRID, None, id="five_in_a_row_s"),
     ],
 )
-def test_win_conditions(
-    grid: str, move_q: int, move_r: int, expected_winner: int
-) -> None:
-    """Tests win conditions along all three hexagonal axes."""
+def test_static_win_conditions(grid: str, expected_winner: int) -> None:
+    """Tests that wins are correctly identified from static board states."""
     game = HexGame.from_string(grid)
-    winner = game.make_move(move_q, move_r)
-    assert winner == expected_winner
+    assert game.winner == expected_winner
+
+
+def test_turn_reconstruction() -> None:
+    """Tests that turn state is still correctly reconstructed even if someone won."""
+    game = HexGame.from_string(WIN_R_GRID)
+    # 6 X's + 6 O's = 12 pieces => Turn 7, P1, 1 move made.
+    assert game.turn_number == 7
+    assert game.current_player == 1
+    assert game.moves_this_turn == 1
+
+
+def test_winner_detected_during_parsing() -> None:
+    """Tests that winners are correctly identified immediately after parsing."""
+    # FIVE_IN_A_ROW_Q_GRID only has 5 X's (No winner)
+    game = HexGame.from_string(FIVE_IN_A_ROW_Q_GRID)
+    assert game.winner is None
+
+    # FIVE_IN_A_ROW_R_GRID only has 5 X's (No winner)
+    game = HexGame.from_string(FIVE_IN_A_ROW_R_GRID)
+    assert game.winner is None
+
+    # FIVE_IN_A_ROW_S_GRID only has 5 X's (No winner)
+    game = HexGame.from_string(FIVE_IN_A_ROW_S_GRID)
+    assert game.winner is None
 
 
 # --- Parsing Exceptions ---

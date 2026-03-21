@@ -5,17 +5,15 @@ and board state for a hexagonal tic-tac-toe game played on a grid of bitboards.
 """
 
 from collections.abc import Iterable
-from typing import Final, Literal, TypeVar
+from typing import Final, Literal
 
 # Type alias for coordinates
 type Coord = tuple[int, int]
 # Player type (1 or 2)
 type Player = Literal[1, 2]
 
-T = TypeVar("T", bound="HexGame")
 
-
-class HexGame:
+class HexGame[T]:
     """A hexagonal tic-tac-toe game engine.
 
     The game is played on a hexagonal grid where players take turns placing
@@ -29,9 +27,10 @@ class HexGame:
         moves_this_turn: The number of moves already made in the current turn.
         turn_number: The current turn number (starts at 1).
         move_history: A list of all moves made in the game.
+        winner: The player index (1 or 2) if the game is won, else None.
     """
 
-    radius: Final[int]
+    radius: int
     win_length: Final[int] = 6
     # A list containing bitboards for player 1 and player 2.
     _boards: list[int]
@@ -39,6 +38,7 @@ class HexGame:
     moves_this_turn: int
     turn_number: int
     move_history: list[Coord]
+    winner: Player | None
     # Internal offset used for mapping axial coordinates to bitboard indices.
     _offset: int
     # The width of the padded internal bitboard representation.
@@ -57,6 +57,7 @@ class HexGame:
         self.moves_this_turn = 0
         self.turn_number = 1
         self.move_history = []
+        self.winner = None
         # Mapping parameters: (q, r) -> (q+_offset) * _padded_width + (r+_offset)
         self._offset = radius - 1
         self._padded_width = 2 * radius + self.win_length  # Padding for shift-win check
@@ -163,7 +164,8 @@ class HexGame:
         self.move_history.append((q, r))
 
         if self._check_win(self.current_player):
-            return self.current_player
+            self.winner = self.current_player
+            return self.winner
 
         # Turn logic: 1 move for P1 on turn 1, 2 moves for every turn after.
         self.moves_this_turn += 1
@@ -175,6 +177,18 @@ class HexGame:
             self.moves_this_turn = 0
             self.turn_number += 1
 
+        return None
+
+    def get_winner(self) -> Player | None:
+        """Checks if either player has won the game.
+
+        Returns:
+            The player number (1 or 2) who has won, or None if no winner yet.
+        """
+        if self._check_win(1):
+            return 1
+        if self._check_win(2):
+            return 2
         return None
 
     def undo_move(self) -> None:
@@ -193,6 +207,7 @@ class HexGame:
         # Clear bits on both boards to be robust
         self._boards[0] &= ~(1 << index)
         self._boards[1] &= ~(1 << index)
+        self.winner = None  # Reset winner on undo
 
         # Revert turn logic
         if self.moves_this_turn > 0:
@@ -211,12 +226,13 @@ class HexGame:
         self.moves_this_turn = 0
         self.turn_number = 1
         self.move_history = []
+        self.winner = None
 
     def _check_win(self, player: int) -> bool:
         """Checks if the specified player has won the game.
 
-        Uses extremely fast bitwise shifts to detect 6 in a row in all 3 axes.
-        The bitboard is laid out such that:
+        Uses bitwise shifts to detect `win_length` in a row in all 3 axes.
+        The bitboard layout ensures that:
         - Direction 1 is the r-axis (0, 1)
         - Direction _padded_width is the q-axis (1, 0)
         - Direction _padded_width-1 is the s-axis (1, -1)
@@ -225,16 +241,15 @@ class HexGame:
             player: The player number (1 or 2) to check.
 
         Returns:
-            True if the player has 6 marks in a row, False otherwise.
+            True if the player has `win_length` marks in a row, False otherwise.
         """
         bits = self._boards[player - 1]
         for direction in (1, self._padded_width, self._padded_width - 1):
-            # Check for 6 in a row: bits & bits<<direction & bits<<2d ... & bits<<5d
-            # Optimization: combine shifts to check 6 in a row.
-            two_in_a_row = bits & (bits << direction)
-            four_in_a_row = two_in_a_row & (two_in_a_row << (2 * direction))
-            six_in_a_row = four_in_a_row & (two_in_a_row << (4 * direction))
-            if six_in_a_row:
+            # Check for win_length in a row: bits & bits<<d & bits<<2d ... & bits<<(N-1)d
+            mask = bits
+            for shift in range(1, self.win_length):
+                mask &= bits << (shift * direction)
+            if mask:
                 return True
         return False
 
@@ -306,10 +321,9 @@ class HexGame:
             game.current_player = 2 if game.turn_number % 2 == 0 else 1
             game.moves_this_turn = (total_pieces - 1) % 2
         else:
-            game.turn_number = 1
-            game.current_player = 1
             game.moves_this_turn = 0
 
+        game.winner = game.get_winner()
         return game
 
     def __str__(self) -> str:
