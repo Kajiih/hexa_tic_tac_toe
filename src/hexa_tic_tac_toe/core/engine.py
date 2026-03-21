@@ -5,7 +5,7 @@ and board state for a hexagonal tic-tac-toe game played on a grid of bitboards.
 """
 
 from collections.abc import Iterable
-from typing import Final, Literal
+from typing import Final, Literal, Self
 
 # Type alias for coordinates
 type Coord = tuple[int, int]
@@ -13,7 +13,7 @@ type Coord = tuple[int, int]
 type Player = Literal[1, 2]
 
 
-class HexGame[T]:
+class HexGame:
     """A hexagonal tic-tac-toe game engine.
 
     The game is played on a hexagonal grid where players take turns placing
@@ -254,7 +254,7 @@ class HexGame[T]:
         return False
 
     @classmethod
-    def from_string(cls: type[T], text_grid: str) -> T:
+    def from_string(cls, text_grid: str) -> Self:
         """Creates a HexGame instance from a string representation.
 
         The input should be a staggered grid of '.', 'X', 'O'.

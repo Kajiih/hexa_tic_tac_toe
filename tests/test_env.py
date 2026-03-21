@@ -1,4 +1,3 @@
-import pytest
 from pettingzoo.test import api_test
 
 from hexa_tic_tac_toe.env import env
