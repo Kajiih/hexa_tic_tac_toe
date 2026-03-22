@@ -1,0 +1,33 @@
+defaults:
+  - _self_
+
+env:
+  radius: 50
+  win_length: 6
+
+model:
+  num_channels: 64
+  num_blocks: 5
+
+mcts:
+  num_simulations: 50
+  temperature: 1.0
+
+optimizer:
+  learning_rate: 1e-3
+  batch_size: 256
+  buffer_size: 50000
+
+logging:
+  use_wandb: false
+  project_name: "hexa-tic-tac-toe-alphazero"
+  log_interval: 10
+  save_interval: 1000
+  eval_interval: 100
+  eval_games: 64
+
+seed: 42
+total_steps: 10000
+num_envs: 128
+checkpoint_dir: "./checkpoints"
+checkpoint_step: null

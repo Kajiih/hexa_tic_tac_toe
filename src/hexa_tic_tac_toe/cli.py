@@ -93,53 +93,68 @@ def bench(
     typer.echo(f"Wins: P1: {wins[1]}, P2: {wins[2]}, Draw: {wins[None]}")
 
 
-@app.command()
-def train(
-    num_envs: int = 128,
-    num_simulations: int = 25,
-    total_steps: int = 10_000,
-    learning_rate: float = 1e-3,
-    batch_size: int = 256,
-    buffer_size: int = 50_000,
-    log_interval: int = 10,
-    save_interval: int = 1000,
-    eval_interval: int = 100,
-    eval_games: int = 64,
-    checkpoint_dir: str = "./checkpoints",
-    use_wandb: bool = False,
-    seed: int = 42,
-):
-    """Trains the AlphaZero agent using self-play."""
+@app.command(
+    context_settings={"allow_extra_args": True, "ignore_unknown_options": True}
+)
+def train(ctx: typer.Context):
+    """Trains the AlphaZero agent using self-play (Hydra enabled)."""
+    from hydra import compose, initialize
+    from omegaconf import OmegaConf
     from hexa_tic_tac_toe.agent.orchestrator import AlphaZeroOrchestrator
-    orchestrator = AlphaZeroOrchestrator(locals())
-    orchestrator.train()
+    from hexa_tic_tac_toe.agent.config import AlphaZeroConfig
+
+    # 1. Initialize Hydra from the configs directory
+    # We use a context manager to avoid global initialization issues
+    with initialize(version_base=None, config_path="../../configs"):
+        # 2. Compose config from default and CLI overrides
+        # ctx.args contains any extra arguments passed to the command
+        cfg_yaml = compose(config_name="config", overrides=ctx.args)
+        
+        # 3. Convert to structured config (AlphaZeroConfig)
+        # We merge with a structured config to ensure type safety
+        base_cfg = OmegaConf.structured(AlphaZeroConfig)
+        cfg = OmegaConf.merge(base_cfg, cfg_yaml)
+        
+        # 4. Initialize and run orchestrator
+        orchestrator = AlphaZeroOrchestrator(cast(AlphaZeroConfig, cfg))
+        orchestrator.train()
 
 
-@app.command()
-def eval(
-    num_games: int = 64,
-    num_simulations: int = 25,
-    checkpoint: Optional[str] = None,
-):
-    """Evaluates the AlphaZero agent against a random baseline."""
-    from hexa_tic_tac_toe.agent.orchestrator import AlphaZeroOrchestrator
+@app.command(
+    context_settings={"allow_extra_args": True, "ignore_unknown_options": True}
+)
+def eval(ctx: typer.Context):
+    """Evaluates the AlphaZero agent against a random baseline (Hydra enabled)."""
     import jax
-    
-    config = {"checkpoint_dir": checkpoint if checkpoint else "./checkpoints"}
-    orchestrator = AlphaZeroOrchestrator(config)
-    
-    key = jax.random.PRNGKey(42)
-    # We cast to avoid lint errors regarding parameters on TrainState
-    params = cast(Any, orchestrator.train_state).params if hasattr(orchestrator.train_state, "params") else None
-    
-    if params is None:
-        typer.echo("Error: Could not retrieve parameters from TrainState.")
-        raise typer.Exit(code=1)
+    from hydra import compose, initialize
+    from omegaconf import OmegaConf
+    from hexa_tic_tac_toe.agent.orchestrator import AlphaZeroOrchestrator
+    from hexa_tic_tac_toe.agent.config import AlphaZeroConfig
 
-    metrics = orchestrator.jitted_eval_step(
-        params, key, num_games, num_simulations
-    )
-    typer.echo(f"Evaluation results: {metrics}")
+    with initialize(version_base=None, config_path="../../configs"):
+        cfg_yaml = compose(config_name="config", overrides=ctx.args)
+        base_cfg = OmegaConf.structured(AlphaZeroConfig)
+        cfg = cast(AlphaZeroConfig, OmegaConf.merge(base_cfg, cfg_yaml))
+        
+        orchestrator = AlphaZeroOrchestrator(cfg)
+        
+        key = jax.random.PRNGKey(cfg.seed)
+        # We cast to avoid lint errors regarding parameters on TrainState
+        params = cast(Any, orchestrator.train_state).params if hasattr(orchestrator.train_state, "params") else None
+        
+        if params is None:
+            typer.echo("Error: Could not load model parameters for evaluation.")
+            raise typer.Exit(code=1)
+            
+        typer.echo(f"Evaluating model against random agent ({cfg.logging.eval_games} games)...")
+        metrics = orchestrator.jitted_eval_step(
+            params, 
+            key, 
+            num_games=cfg.logging.eval_games, 
+            num_simulations=cfg.mcts.num_simulations
+        )
+        
+        typer.echo(f"Results: Win Rate: {metrics['win_rate']:.2f} | Draw Rate: {metrics['draw_rate']:.2f}")
 
 
 @app.command()

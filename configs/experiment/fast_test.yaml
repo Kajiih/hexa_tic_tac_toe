@@ -1,0 +1,11 @@
+# @package _global_
+optimizer:
+  batch_size: 32
+  buffer_size: 1000
+mcts:
+  num_simulations: 10
+total_steps: 100
+num_envs: 16
+logging:
+  log_interval: 5
+  eval_interval: 50
