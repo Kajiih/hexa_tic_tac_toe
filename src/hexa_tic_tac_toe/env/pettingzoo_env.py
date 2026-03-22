@@ -59,18 +59,11 @@ class HexTicTacToeEnv(AECEnv):
             for agent in self.agents
         }
 
-        # Observation space: Dictionary containing the spatial grid and an action mask.
-        # grid shape: (3 channels, H, W) -> Channel 0: active player stones, Channel 1: opponent stones, Channel 2: valid mask
+        # Observation space: Standard spatial grid box (3 channels, H, W)
+        # Channel 0: active player stones, Channel 1: opponent stones, Channel 2: valid mask
         self._observation_spaces = {
-            agent: gymnasium.spaces.Dict(
-                {
-                    "observation": gymnasium.spaces.Box(
-                        low=0, high=1, shape=(3, self.grid_size, self.grid_size), dtype=np.int8
-                    ),
-                    "action_mask": gymnasium.spaces.Box(
-                        low=0, high=1, shape=(self.grid_size * self.grid_size,), dtype=np.int8
-                    ),
-                }
+            agent: gymnasium.spaces.Box(
+                low=0, high=1, shape=(3, self.grid_size, self.grid_size), dtype=np.int8
             )
             for agent in self.agents
         }
@@ -113,14 +106,14 @@ class HexTicTacToeEnv(AECEnv):
             return None
         return str(self.game)
 
-    def observe(self, agent: str) -> dict[str, np.ndarray]:
-        """Returns the observation for the specified agent.
+    def observe(self, agent: str) -> np.ndarray:
+        """Returns the spatial observation for the specified agent.
 
         Args:
             agent: The name of the agent.
 
         Returns:
-            A dictionary containing the spatial 'observation' and 'action_mask'.
+            A 3D NumPy array (3, H, W).
         """
         agent_idx = self.agents.index(agent)
         active_player: Player = 1 if agent_idx == 0 else 2
@@ -148,7 +141,10 @@ class HexTicTacToeEnv(AECEnv):
         # Channel 2 is always the constant valid board mask
         obs[2] = self._valid_mask
 
-        return {"observation": obs, "action_mask": action_mask}
+        # Update action mask in the info dictionary for this agent
+        self.infos[agent]["action_mask"] = action_mask
+
+        return obs
 
     def close(self) -> None:
         """Closes the environment."""
