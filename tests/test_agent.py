@@ -43,9 +43,14 @@ def test_agent_training_loop() -> None:
     # Execute one batched step of self-play with MCTS
     # MCTS takes a few seconds to compile initially
     key, sp_key = jax.random.split(key)
-    next_env_state, transition, _ = jit_play_step(
+    # self_play_step returns 5 values: next_state, transition, key, terminated, rewards
+    next_env_state, transition, _, _, _ = jit_play_step(
         train_state.params, env_state, sp_key, num_simulations=4
     )
+    # Add dummy target_value to transition for buffer compatibility in this test
+    # And remove current_player which is not stored in the final buffer
+    transition["target_value"] = jax.numpy.zeros(batch_size, dtype=jax.numpy.float32)
+    transition.pop("current_player")
 
     # Validation
     assert next_env_state.observation.shape == (batch_size, 3, 106, 106)

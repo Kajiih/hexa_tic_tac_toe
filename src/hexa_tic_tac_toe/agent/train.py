@@ -61,7 +61,7 @@ def self_play_step(
     env_state: Any,
     rng_key: jax.Array,
     num_simulations: int = 10,
-) -> tuple[Any, dict[str, jnp.ndarray], jax.Array]:
+) -> tuple[Any, dict[str, Any], jax.Array, jax.Array, jax.Array]:
     """Runs MCTS and advances the environment by exactly one step."""
     # 1. Run MCTS to get the improved policy
     mcts_key, step_key, next_rng_key = jax.random.split(rng_key, 3)
@@ -82,12 +82,11 @@ def self_play_step(
     step_keys = jax.random.split(step_key, batch_size)
     next_env_state = env_step_vmap(env_state, action, step_keys)
 
-    # Collect transition data (we assign target_value loosely as the outcome seen later, 
-    # but for this verified pipeline test, we just use the raw rewards/0.0 as placeholders)
+    # Collect transition data (without target_value yet, as it will be filled after episode ends)
     transition = {
         "observation": observation,
         "target_policy": target_policy,
-        "target_value": jnp.zeros(batch_size, dtype=jnp.float32),  # Placeholder for MCTS/game value
+        "current_player": env_state.current_player,
     }
 
-    return next_env_state, transition, next_rng_key  # type: ignore
+    return next_env_state, transition, next_rng_key, next_env_state.terminated, next_env_state.rewards

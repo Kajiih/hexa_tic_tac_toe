@@ -15,6 +15,7 @@ import time
 from typing import Any, cast
 
 import jax
+import jax.numpy as jnp
 import orbax.checkpoint
 import wandb
 
@@ -23,6 +24,7 @@ from hexa_tic_tac_toe.agent import (
     AlphaZeroNet,
     create_replay_buffer,
     create_train_state,
+    evaluate_vs_random,
     init_buffer_state,
     self_play_step,
     train_step,
@@ -82,9 +84,19 @@ def main(args: argparse.Namespace) -> None:
 
     jitted_actor_step = cast(Any, jitted_actor_step)
 
+    # 7. Trajectory Tracking
+    # We maintain a list of transitions for each parallel environment
+    # to back-propagate the final game reward once it terminates.
+    trajectories: list[list[dict[str, Any]]] = [[] for _ in range(args.num_envs)]
+    pending_buffer_add: list[dict[str, Any]] = []
+
     jitted_buffer_add = jax.jit(buffer.add)
     jitted_buffer_sample = jax.jit(buffer.sample)
     jitted_train_step = jax.jit(train_step)
+
+    @functools.partial(jax.jit, static_argnames=("num_games", "num_simulations"))
+    def jitted_eval_step(params, r_key, num_games, num_simulations):
+        return evaluate_vs_random(env, network, params, r_key, num_games, num_simulations)
 
     print("Starting continuous training loop...")
     for step in range(latest_step + 1, args.total_steps + 1):
@@ -93,12 +105,47 @@ def main(args: argparse.Namespace) -> None:
         # ACTOR: Self-Play Phase
         # Run X simultaneous MCTS steps on the batched environments
         key, sp_key = jax.random.split(key)
-        batched_env_state, transitions, _ = jitted_actor_step(
+        batched_env_state, transitions, _, terminated, rewards = jitted_actor_step(
             train_state.params, batched_env_state, sp_key, num_simulations=args.num_simulations  # type: ignore
         )
 
-        # STORAGE: Insert transitions into the replay buffer
-        buffer_state = jitted_buffer_add(buffer_state, transitions)
+        # STORAGE: Manage trajectories and insert into replay buffer
+        # 1. Store the transitions for each environment
+        # We need to move the data from JAX device arrays to Python for trajectory management
+        obs_batch = jax.device_get(transitions["observation"])
+        policy_batch = jax.device_get(transitions["target_policy"])
+        player_batch = jax.device_get(transitions["current_player"])
+        term_batch = jax.device_get(terminated)
+        reward_batch = jax.device_get(rewards)
+
+        for i in range(args.num_envs):
+            trajectories[i].append({
+                "observation": obs_batch[i],
+                "target_policy": policy_batch[i],
+                "current_player": int(player_batch[i]),
+            })
+
+            if term_batch[i]:
+                # Episode finished! Propagate the reward to all steps.
+                final_rewards = reward_batch[i]  # [reward_p0, reward_p1]
+                for trans in trajectories[i]:
+                    player_id = trans.pop("current_player")
+                    trans["target_value"] = final_rewards[player_id]
+                    pending_buffer_add.append(trans)
+                trajectories[i] = []
+
+        # 2. Push to Replay Buffer in batches of `num_envs` to maintain efficiency
+        while len(pending_buffer_add) >= args.num_envs:
+            batch_to_add = pending_buffer_add[:args.num_envs]
+            pending_buffer_add = pending_buffer_add[args.num_envs:]
+
+            # Stack individual transitions into a batch of arrays
+            collated_batch = {
+                "observation": jnp.stack([t["observation"] for t in batch_to_add]),
+                "target_policy": jnp.stack([t["target_policy"] for t in batch_to_add]),
+                "target_value": jnp.array([t["target_value"] for t in batch_to_add], dtype=jnp.float32),
+            }
+            buffer_state = jitted_buffer_add(buffer_state, collated_batch)
 
         # LEARNER: Training Phase (Only if buffer is sufficiently full)
         metrics = {}
@@ -132,6 +179,21 @@ def main(args: argparse.Namespace) -> None:
             save_args = orbax.checkpoint.args.StandardSave(train_state)
             checkpoint_manager.save(step, args=save_args)
 
+        # 8. Evaluation Phase
+        if step % args.eval_interval == 0:
+            print(f"[{step}/{args.total_steps}] Evaluating agent against random baseline...")
+            key, eval_key = jax.random.split(key)
+            # Cast params to Any for mctx/jax compatibility and to avoid lint errors
+            eval_metrics = jitted_eval_step(
+                cast(Any, train_state).params, eval_key, num_games=args.eval_games, num_simulations=args.num_simulations
+            )
+            # Convert JAX scalars to Python floats for logging
+            eval_results = {k: float(v) for k, v in eval_metrics.items()}
+            print(f"Evaluation Results: Win: {eval_results['win_rate']:.2f} | Draw: {eval_results['draw_rate']:.2f} | Loss: {eval_results['loss_rate']:.2f}")
+            
+            if args.use_wandb:
+                wandb.log({f"eval/{k}": v for k, v in eval_results.items()} | {"step": step})
+
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="AlphaZero Hexagonal Tic-Tac-Toe Training")
@@ -143,6 +205,8 @@ if __name__ == "__main__":
     parser.add_argument("--total_steps", type=int, default=10_000, help="Total number of self-play/train cycles")
     parser.add_argument("--log_interval", type=int, default=10, help="Steps between logging metrics")
     parser.add_argument("--save_interval", type=int, default=1000, help="Steps between Orbax checkpoints")
+    parser.add_argument("--eval_interval", type=int, default=100, help="Steps between evaluations")
+    parser.add_argument("--eval_games", type=int, default=64, help="Number of games to play during evaluation")
     parser.add_argument("--checkpoint_dir", type=str, default="./checkpoints", help="Directory for Orbax checkpoints")
     parser.add_argument("--use_wandb", action="store_true", help="Log metrics to Weights and Biases")
     parser.add_argument("--seed", type=int, default=42, help="JAX random seed")
