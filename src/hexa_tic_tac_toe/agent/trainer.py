@@ -9,6 +9,7 @@ from flax.training.train_state import TrainState
 
 from hexa_tic_tac_toe.agent.mcts import run_mcts
 from hexa_tic_tac_toe.agent.network import AlphaZeroNet
+from hexa_tic_tac_toe.core.constants import PADDED_WIDTH
 from hexa_tic_tac_toe.env.pgx_env import HexTicTacToePgx
 
 
@@ -16,7 +17,7 @@ def create_train_state(rng: jax.Array, learning_rate: float = 1e-3) -> TrainStat
     """Initializes the Flax TrainState with Optax optimizer."""
     network = AlphaZeroNet()
     # Dummy input to initialize the network parameters
-    dummy_obs = jnp.zeros((1, 3, 106, 106), dtype=jnp.bool_)
+    dummy_obs = jnp.zeros((1, 3, PADDED_WIDTH, PADDED_WIDTH), dtype=jnp.bool_)
     variables = network.init(rng, dummy_obs)
     params = variables["params"]
 

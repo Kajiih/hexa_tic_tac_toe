@@ -143,6 +143,94 @@ def eval(
 
 
 @app.command()
+def play(
+    radius: int = RADIUS,
+    human_first: bool = True,
+    num_simulations: int = 100,
+    checkpoint: str = "./checkpoints",
+):
+    """Starts an interactive game against the AlphaZero agent."""
+    import os
+    import jax
+    from hexa_tic_tac_toe.agent.player import AlphaZeroPlayer
+    from hexa_tic_tac_toe.env.pgx_env import HexTicTacToePgx
+
+    def clear_screen():
+        os.system("cls" if os.name == "nt" else "clear")
+
+    # 1. Initialize Game & AI
+    game = HexGame(radius=radius)
+    env = HexTicTacToePgx()
+    player = AlphaZeroPlayer(checkpoint_dir=checkpoint)
+    
+    # Initialize Pgx State
+    key = jax.random.PRNGKey(random.randint(0, 10000))
+    state = env.init(key)
+
+    human_player_idx = 0 if human_first else 1
+    ai_player_idx = 1 - human_player_idx
+
+    while not state.terminated:
+        clear_screen()
+        typer.echo(f"Hexagonal Tic-Tac-Toe (Radius: {radius})")
+        typer.echo(f"Goal: {WIN_LENGTH} in a row")
+        typer.echo("-" * 20)
+        typer.echo(game)
+        typer.echo("-" * 20)
+        
+        curr_player = int(state.current_player)
+        if curr_player == human_player_idx:
+            # Human Turn
+            valid_move = False
+            while not valid_move:
+                try:
+                    move_input = typer.prompt("Your move (q,r)").strip()
+                    if "," not in move_input:
+                        typer.echo("Format: q,r (e.g., 0,0)")
+                        continue
+                    q, r = map(int, move_input.split(","))
+                    if not game.is_valid_move(q, r):
+                        typer.echo("Invalid move or already occupied.")
+                        continue
+                    
+                    action = game._coord_to_index(q, r)
+                    game.make_move(q, r)
+                    state = env.step(state, action, key)
+                    valid_move = True
+                except ValueError:
+                    typer.echo("Parsing error. Use integers for q and r.")
+        else:
+            # AI Turn
+            typer.echo("AI is thinking...")
+            action = player.decide_move(state, num_simulations=num_simulations)
+            
+            # Find coordinates for display
+            q, r = None, None
+            for cq, cr in game.get_all_coordinates():
+                if game._coord_to_index(cq, cr) == action:
+                    q, r = cq, cr
+                    break
+            
+            typer.echo(f"AI chose: {q},{r}")
+            time.sleep(1.0) # brief pause for readability
+            assert q is not None and r is not None
+            game.make_move(q, r)
+            state = env.step(state, action, key)
+
+    # FINAL STATE
+    clear_screen()
+    typer.echo(game)
+    typer.echo("-" * 20)
+    winner = int(game.winner) if game.winner else None
+    if winner == human_player_idx + 1:
+        typer.echo("Congratulations! You won!")
+    elif winner == ai_player_idx + 1:
+        typer.echo("AI wins! Better luck next time.")
+    else:
+        typer.echo("It's a draw!")
+
+
+@app.command()
 def replay(
     radius: int = 3,
     delay: float = 0.5,
