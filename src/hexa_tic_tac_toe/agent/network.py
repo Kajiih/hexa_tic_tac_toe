@@ -6,9 +6,9 @@ import jax
 import jax.numpy as jnp
 from flax import linen as nn
 
-# Constants tied to our specific Pgx environment dimensions
-PADDED_WIDTH: Final[int] = 106
-ACTION_SPACE_SIZE: Final[int] = PADDED_WIDTH * PADDED_WIDTH
+from hexa_tic_tac_toe.core.constants import GRID_SIZE
+
+ACTION_SPACE_SIZE: Final[int] = GRID_SIZE
 
 
 class AlphaZeroNet(nn.Module):

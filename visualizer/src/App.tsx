@@ -1,18 +1,19 @@
 import React, { useState, useEffect, useMemo } from "react";
 import HexCell from "./components/HexCell";
 import { BoardState, Coord, GameData, Player } from "./types";
+import config from "./config.json";
 import "./App.css";
 
 /**
  * Calculates the player for a given move index based on the 1-2-2 game rules.
  */
 const getPlayerForIndex = (index: number): Player => {
-    if (index === 0) return 1;
-    return Math.floor((index + 1) / 2) % 2 === 1 ? 2 : 1;
+    if (index === 0) return config.player1 as Player;
+    return Math.floor((index + 1) / 2) % 2 === 1 ? (config.player2 as Player) : (config.player1 as Player);
 };
 
 export default function App() {
-    const [radius, setRadius] = useState<number>(5);
+    const [radius, setRadius] = useState<number>(config.radius);
     const [history, setHistory] = useState<Coord[]>([]);
     const [currentIndex, setCurrentIndex] = useState<number>(-1);
     const [isPlaying, setIsPlaying] = useState<boolean>(false);

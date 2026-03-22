@@ -4,21 +4,19 @@ This environment is written entirely in JAX, allowing 100x faster
 hardware-accelerated simulations on GPU/TPU for AlphaZero.
 """
 
-from typing import Final
+
 import jax
 import jax.numpy as jnp
 from flax import struct
 import pgx
 
-# Constants for Radius 50
-RADIUS: Final[int] = 50
-WIN_LENGTH: Final[int] = 6
-OFFSET: Final[int] = RADIUS - 1
-PADDED_WIDTH: Final[int] = 2 * RADIUS + WIN_LENGTH
-GRID_SIZE: Final[int] = PADDED_WIDTH * PADDED_WIDTH
-
-# Max number of pieces that can fit on the board (the valid cells)
-MAX_PIECES: Final[int] = 3 * RADIUS * RADIUS - 3 * RADIUS + 1
+from hexa_tic_tac_toe.core.constants import (
+    GRID_SIZE,
+    MAX_PIECES,
+    PADDED_WIDTH,
+    RADIUS,
+    WIN_LENGTH,
+)
 
 
 @struct.dataclass
@@ -44,8 +42,9 @@ class HexTicTacToePgx(pgx.Env):
         q_idx, r_idx = jnp.meshgrid(
             jnp.arange(PADDED_WIDTH), jnp.arange(PADDED_WIDTH), indexing="ij"
         )
-        q = q_idx - OFFSET
-        r = r_idx - OFFSET
+        offset = RADIUS - 1
+        q = q_idx - offset
+        r = r_idx - offset
 
         # Standard hex game valid grid check
         valid = (jnp.abs(q) < RADIUS) & (jnp.abs(r) < RADIUS) & (jnp.abs(q + r) < RADIUS)

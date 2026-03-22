@@ -5,12 +5,18 @@ and board state for a hexagonal tic-tac-toe game played on a grid of bitboards.
 """
 
 from collections.abc import Iterable
-from typing import Final, Literal, Self
+from typing import Self
+
+from hexa_tic_tac_toe.core.constants import (
+    PLAYER_1,
+    RADIUS,
+    WIN_LENGTH,
+    Player,
+)
+from hexa_tic_tac_toe.core.logic import get_player_for_move_index
 
 # Type alias for coordinates
 type Coord = tuple[int, int]
-# Player type (1 or 2)
-type Player = Literal[1, 2]
 
 
 class HexGame:
@@ -31,7 +37,7 @@ class HexGame:
     """
 
     radius: int
-    win_length: Final[int] = 6
+    win_length: int
     # A list containing bitboards for player 1 and player 2.
     _boards: list[int]
     current_player: Player
@@ -44,16 +50,17 @@ class HexGame:
     # The width of the padded internal bitboard representation.
     _padded_width: int
 
-    def __init__(self, radius: int = 50) -> None:
+    def __init__(self, radius: int = RADIUS) -> None:
         """Initializes a new HexGame.
 
         Args:
-            radius: The radius of the hexagonal board. Defaults to 50.
+            radius: The radius of the hexagonal board. Defaults to the RADIUS constant.
         """
         self.radius = radius
+        self.win_length = WIN_LENGTH
         # Bitboards for player 1 and 2
         self._boards = [0, 0]
-        self.current_player = 1
+        self.current_player = PLAYER_1
         self.moves_this_turn = 0
         self.turn_number = 1
         self.move_history = []
@@ -167,15 +174,16 @@ class HexGame:
             self.winner = self.current_player
             return self.winner
 
-        # Turn logic: 1 move for P1 on turn 1, 2 moves for every turn after.
-        self.moves_this_turn += 1
-        moves_needed = 1 if self.turn_number == 1 else 2
-
-        if self.moves_this_turn >= moves_needed:
-            # Swap 1 and 2
-            self.current_player = 1 if self.current_player == 2 else 2
+        # Advance to the next move and update turn state using centralized logic
+        next_move_index = len(self.move_history)
+        next_player = get_player_for_move_index(next_move_index)
+        
+        if next_player != self.current_player:
+            self.current_player = next_player
             self.moves_this_turn = 0
             self.turn_number += 1
+        else:
+            self.moves_this_turn += 1
 
         return None
 
@@ -209,20 +217,38 @@ class HexGame:
         self._boards[1] &= ~(1 << index)
         self.winner = None  # Reset winner on undo
 
-        # Revert turn logic
-        if self.moves_this_turn > 0:
-            self.moves_this_turn -= 1
+        # Revert turn logic using centralized logic
+        if not self.move_history:
+            # If we just popped the ONLY move, we are back at the start
+            self.current_player = PLAYER_1
+            self.moves_this_turn = 0
+            self.turn_number = 1
+            return
+
+        # Use the state of the board AFTER the pop (the next move to be made)
+        # to determine current turn state.
+        current_move_index = len(self.move_history)
+        self.current_player = get_player_for_move_index(current_move_index)
+        
+        # We need to find how many moves of self.current_player have already been made
+        # at this move_index.
+        if current_move_index == 0:
+            self.moves_this_turn = 0
+            self.turn_number = 1
         else:
-            # We were at the start of a turn, so we go back to the previous turn
-            self.turn_number -= 1
-            self.current_player = 1 if self.current_player == 2 else 2
-            moves_needed = 1 if self.turn_number == 1 else 2
-            self.moves_this_turn = moves_needed - 1
+            # Turn number calculation: P1(0), P2(1,2), P1(3,4), P2(...)
+            self.turn_number = (current_move_index + 1) // 2 + 1
+            # Check if previous move was from the same player
+            prev_player = get_player_for_move_index(current_move_index - 1)
+            if prev_player == self.current_player:
+                self.moves_this_turn = 1
+            else:
+                self.moves_this_turn = 0
 
     def reset(self) -> None:
         """Resets the game to the initial empty state."""
         self._boards = [0, 0]
-        self.current_player = 1
+        self.current_player = PLAYER_1
         self.moves_this_turn = 0
         self.turn_number = 1
         self.move_history = []
@@ -315,11 +341,17 @@ class HexGame:
                     game._boards[1] |= 1 << index
                 total_pieces += 1
 
-        # Reconstruct turn state from the number of pieces
+        # Reconstruct turn state from the number of pieces using centralized logic
+        game.turn_number = (total_pieces + 1) // 2 + 1
+        game.current_player = get_player_for_move_index(total_pieces)
+        
         if total_pieces > 0:
-            game.turn_number = (total_pieces + 1) // 2 + 1
-            game.current_player = 2 if game.turn_number % 2 == 0 else 1
-            game.moves_this_turn = (total_pieces - 1) % 2
+            # Determine moves_this_turn
+            prev_player = get_player_for_move_index(total_pieces - 1)
+            if prev_player == game.current_player:
+                game.moves_this_turn = 1
+            else:
+                game.moves_this_turn = 0
         else:
             game.moves_this_turn = 0
 
