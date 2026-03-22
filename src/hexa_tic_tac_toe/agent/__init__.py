@@ -4,7 +4,7 @@ from .buffer import create_replay_buffer, init_buffer_state
 from .evaluate import evaluate_vs_random
 from .mcts import run_mcts
 from .network import AlphaZeroNet
-from .train import create_train_state, self_play_step, train_step
+from .trainer import create_train_state, self_play_step, train_step
 
 __all__ = [
     "AlphaZeroNet",
